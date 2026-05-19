@@ -1,0 +1,101 @@
+@page "/fetchproducts"
+@inject HttpClient Http
+
+@using System.Text.Json
+
+<h3>Product List</h3>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <p style="color:red">@errorMessage</p>
+}
+else if (products == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <ul>
+        @foreach (var product in products)
+        {
+            <li>
+                @product.Name - $@product.Price |
+                Stock: @product.Stock |
+                Category: @product.Category?.Name
+            </li>
+        }
+    </ul>
+}
+
+@code {
+
+    private Product[]? products;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Copilot suggested using a null check
+        // to avoid unnecessary API calls.
+
+        if (products != null)
+        {
+            return;
+        }
+
+        try
+        {
+            var response = await Http.GetAsync(
+                "http://localhost:5132/api/productlist");
+
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+
+            // Copilot helped deserialize JSON safely
+            // and suggested exception handling.
+
+            products = JsonSerializer.Deserialize<Product[]>(json);
+
+            if (products == null)
+            {
+                errorMessage = "No valid product data was returned.";
+            }
+        }
+        catch (JsonException ex)
+        {
+            errorMessage = $"JSON Error: {ex.Message}";
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = $"Request Error: {ex.Message}";
+        }
+        catch (TaskCanceledException)
+        {
+            errorMessage = "The request timed out.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unexpected Error: {ex.Message}";
+        }
+    }
+
+    public class Product
+    {
+        public int Id { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+
+        public double Price { get; set; }
+
+        public int Stock { get; set; }
+
+        public Category? Category { get; set; }
+    }
+
+    public class Category
+    {
+        public int Id { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+    }
+}
